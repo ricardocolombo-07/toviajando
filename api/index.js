@@ -117,6 +117,24 @@ app.get("/api/products/search", (req, res) => {
   res.json(results);
 });
 
+// Manually triggers the product-refresh Edge Function (same job the daily
+// cron runs) so the pipeline can be tested without waiting for 00:00 UTC.
+app.post("/api/products/refresh", async (req, res) => {
+  try {
+    const response = await fetch(`${process.env.SUPABASE_URL}/functions/v1/product-refresh`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const body = await response.json();
+    res.status(response.status).json(body);
+  } catch (err) {
+    res.status(502).json({ error: `Failed to reach product-refresh function: ${err.message}` });
+  }
+});
+
 // --- Coupons ---
 
 app.get("/api/coupons", async (req, res) => {
