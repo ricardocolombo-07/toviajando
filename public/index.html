@@ -2,9 +2,441 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>TOVIAJANDO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOVIAJANDO - Planeje Sua Viagem em 5 Minutos</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    header .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav {
+      display: flex;
+      gap: 30px;
+    }
+
+    .nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      transition: opacity 0.3s;
+    }
+
+    .nav a:hover {
+      opacity: 0.8;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 100px 0;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 56px;
+      margin-bottom: 20px;
+      font-weight: 800;
+    }
+
+    .hero p {
+      font-size: 24px;
+      margin-bottom: 40px;
+      opacity: 0.95;
+    }
+
+    .cta-button {
+      display: inline-block;
+      padding: 18px 50px;
+      background: white;
+      color: #667eea;
+      text-decoration: none;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 18px;
+      transition: all 0.3s;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .cta-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    /* Features */
+    .features {
+      padding: 100px 0;
+      background: #f8f9fa;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 42px;
+      margin-bottom: 60px;
+      color: #1a1a1a;
+      font-weight: 700;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 40px;
+    }
+
+    .feature-card {
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+
+    .feature-icon {
+      font-size: 50px;
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 22px;
+      margin-bottom: 15px;
+      color: #1a1a1a;
+    }
+
+    .feature-card p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    /* Benefits */
+    .benefits {
+      padding: 100px 0;
+      background: white;
+    }
+
+    .benefits-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .benefits h2 {
+      font-size: 42px;
+      margin-bottom: 30px;
+      color: #1a1a1a;
+      font-weight: 700;
+    }
+
+    .benefit-list {
+      list-style: none;
+    }
+
+    .benefit-list li {
+      padding: 15px 0;
+      padding-left: 40px;
+      font-size: 18px;
+      position: relative;
+      color: #333;
+    }
+
+    .benefit-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #667eea;
+      font-weight: 700;
+      font-size: 24px;
+    }
+
+    .benefits-image {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 15px;
+      height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 100px;
+      color: white;
+    }
+
+    /* Social Proof */
+    .social-proof {
+      padding: 80px 0;
+      background: #f8f9fa;
+      text-align: center;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 40px;
+      margin-top: 50px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+    }
+
+    .stat-number {
+      font-size: 36px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .stat-label {
+      color: #666;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+
+    /* CTA Section */
+    .cta-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 80px 0;
+      text-align: center;
+    }
+
+    .cta-section h2 {
+      font-size: 42px;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    .cta-section p {
+      font-size: 20px;
+      margin-bottom: 40px;
+      opacity: 0.95;
+    }
+
+    .cta-button-dark {
+      display: inline-block;
+      padding: 18px 50px;
+      background: white;
+      color: #667eea;
+      text-decoration: none;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 18px;
+      transition: all 0.3s;
+    }
+
+    .cta-button-dark:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    /* Footer */
+    footer {
+      background: #1a1a1a;
+      color: white;
+      text-align: center;
+      padding: 40px 0;
+    }
+
+    footer a {
+      color: #667eea;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 36px;
+      }
+
+      .hero p {
+        font-size: 18px;
+      }
+
+      .section-title {
+        font-size: 32px;
+      }
+
+      .benefits-content {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        display: none;
+      }
+
+      .benefits h2 {
+        font-size: 32px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h1>✈️ TOVIAJANDO</h1>
+  <!-- Header -->
+  <header>
+    <div class="container">
+      <div class="logo">✈️ TOVIAJANDO</div>
+      <nav class="nav">
+        <a href="#features">Features</a>
+        <a href="#benefits">Benefícios</a>
+        <a href="#cta">Começar</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <h1>Planeje Sua Viagem em 5 Minutos</h1>
+      <p>Itinerário inteligente, cupons e recomendações automáticas. 100% gratuito.</p>
+      <a href="/wizard.html" class="cta-button">Começar Agora →</a>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <div class="container">
+      <h2 class="section-title">Por que escolher TOVIAJANDO?</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <h3>Itinerário Inteligente</h3>
+          <p>Crie um plano de viagem personalizado baseado no seu perfil de viajante</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛍️</div>
+          <h3>Compras Recomendadas</h3>
+          <p>Produtos automáticos dos melhores preços (Shopee, ML, Amazon)</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💰</div>
+          <h3>Cupons Urgentes</h3>
+          <p>Descontos em hospedagem, tours e serviços de viagem</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✨</div>
+          <h3>Guia Completo</h3>
+          <p>Informações de segurança, clima, cultura e atrações do destino</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h3>Sem Cadastro Complexo</h3>
+          <p>Comece em segundos, sem formulários longos ou dados pessoais</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🚀</div>
+          <h3>100% Gratuito</h3>
+          <p>Toda ferramenta é completamente grátis, para sempre</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Benefits -->
+  <section class="benefits" id="benefits">
+    <div class="container">
+      <div class="benefits-content">
+        <div>
+          <h2>Tudo que você precisa para viajar melhor</h2>
+          <ul class="benefit-list">
+            <li>Roteiro personalizado por tipo de viagem</li>
+            <li>Recomendações de compras automáticas</li>
+            <li>Cupons exclusivos de parceiros</li>
+            <li>Informações de segurança e clima</li>
+            <li>Top atrações imperdíveis</li>
+            <li>Nenhum anúncio ou distração</li>
+            <li>Acessível em qualquer dispositivo</li>
+          </ul>
+        </div>
+        <div class="benefits-image">🧳</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Social Proof -->
+  <section class="social-proof">
+    <div class="container">
+      <h2 class="section-title">Estatísticas</h2>
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-number">50+</div>
+          <div class="stat-label">Destinos Disponíveis</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">1000+</div>
+          <div class="stat-label">Produtos Recomendados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">100%</div>
+          <div class="stat-label">Gratuito, Sempre</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="cta">
+    <div class="container">
+      <h2>Pronto para planejar sua próxima aventura?</h2>
+      <p>Crie seu itinerário personalizado em minutos</p>
+      <a href="/wizard.html" class="cta-button-dark">Começar Agora →</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 TOVIAJANDO. Todos os direitos reservados.</p>
+      <p style="margin-top: 10px; font-size: 14px;">
+        <a href="#">Privacidade</a> | 
+        <a href="#">Termos</a> | 
+        <a href="#">Contato</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>
