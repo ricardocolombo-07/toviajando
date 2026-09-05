@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seu roteiro - TOVIAJANDO</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  [hidden] { display: none !important; }
+  .tab-btn.active {
+    color: #2563eb;
+    border-color: #2563eb;
+    font-weight: 600;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+<header class="bg-white border-b border-gray-200 sticky top-0 z-20">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
+    <a href="/" class="text-xl font-bold text-blue-600 shrink-0">TOVIAJANDO</a>
+    <div class="text-right min-w-0">
+      <h1 id="header-title" class="text-sm sm:text-base font-semibold text-gray-900 truncate">Carregando roteiro...</h1>
+      <p id="header-subtitle" class="text-xs sm:text-sm text-gray-500"></p>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <div id="error-banner" hidden class="mb-6 rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm"></div>
+
+  <nav class="flex overflow-x-auto border-b border-gray-200 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
+    <button data-tab="itinerario" class="tab-btn active whitespace-nowrap px-4 py-3 text-sm border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors">
+      📅 Calendário + Itinerário
+    </button>
+    <button data-tab="kit" class="tab-btn whitespace-nowrap px-4 py-3 text-sm border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors">
+      🎒 Kit Viagem
+    </button>
+    <button data-tab="cupons" class="tab-btn whitespace-nowrap px-4 py-3 text-sm border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors">
+      🏷️ Cupons
+    </button>
+    <button data-tab="destino" class="tab-btn whitespace-nowrap px-4 py-3 text-sm border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors">
+      📍 Info Destino
+    </button>
+  </nav>
+
+  <!-- Tab 1: Calendário + Itinerário -->
+  <section id="panel-itinerario" class="tab-panel">
+    <div id="itinerario-loading" class="text-center py-16 text-gray-400">Gerando itinerário...</div>
+    <div id="itinerario-content" hidden class="space-y-4"></div>
+  </section>
+
+  <!-- Tab 2: Kit Viagem -->
+  <section id="panel-kit" class="tab-panel" hidden>
+    <p class="text-sm text-gray-500 mb-6">Itens recomendados para sua viagem. Ao clicar, você é redirecionado para a Amazon.</p>
+    <div id="kit-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </section>
+
+  <!-- Tab 3: Cupons -->
+  <section id="panel-cupons" class="tab-panel" hidden>
+    <div id="cupons-loading" class="text-center py-16 text-gray-400">Carregando cupons...</div>
+    <div id="cupons-content" hidden class="space-y-3"></div>
+    <div id="cupons-empty" hidden class="text-center py-16 text-gray-400">Nenhum cupom disponível no momento.</div>
+  </section>
+
+  <!-- Tab 4: Info Destino -->
+  <section id="panel-destino" class="tab-panel" hidden>
+    <div id="destino-loading" class="text-center py-16 text-gray-400">Buscando informações do destino...</div>
+    <div id="destino-content" hidden class="bg-white rounded-xl border border-gray-200 p-6"></div>
+    <div id="destino-empty" hidden class="text-center py-16 text-gray-400">
+      Ainda não temos informações verificadas sobre este destino.
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const destination = params.get("destination") || "";
+  const profile = params.get("profile") || "";
+  const days = params.get("days") || "";
+
+  const headerTitle = document.getElementById("header-title");
+  const headerSubtitle = document.getElementById("header-subtitle");
+  const errorBanner = document.getElementById("error-banner");
+
+  const PROFILE_LABELS = {
+    relaxante: "Relaxante",
+    aventura: "Aventura",
+    cultural: "Cultural",
+    familia: "Família",
+    romantico: "Romântico",
+    geral: "Geral",
+  };
+
+  function showError(message) {
+    errorBanner.textContent = message;
+    errorBanner.hidden = false;
+  }
+
+  if (!destination) {
+    headerTitle.textContent = "Nenhum destino selecionado";
+    headerSubtitle.textContent = "";
+    showError("Faltam parâmetros na URL. Volte para o assistente e escolha um destino.");
+  } else {
+    headerTitle.textContent = destination;
+    const profileLabel = PROFILE_LABELS[profile] || profile || "—";
+    headerSubtitle.textContent = `${profileLabel} · ${days || "?"} dia(s)`;
+  }
+
+  // --- Tabs ---
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const panels = {
+    itinerario: document.getElementById("panel-itinerario"),
+    kit: document.getElementById("panel-kit"),
+    cupons: document.getElementById("panel-cupons"),
+    destino: document.getElementById("panel-destino"),
+  };
+
+  const loaded = { itinerario: false, kit: false, cupons: false, destino: false };
+
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      tabButtons.forEach((b) => b.classList.toggle("active", b === btn));
+      Object.entries(panels).forEach(([key, panel]) => {
+        panel.hidden = key !== tab;
+      });
+      loadTab(tab);
+    });
+  });
+
+  function loadTab(tab) {
+    if (loaded[tab] || !destination) return;
+    loaded[tab] = true;
+    if (tab === "itinerario") loadItinerario();
+    if (tab === "kit") loadKit();
+    if (tab === "cupons") loadCupons();
+    if (tab === "destino") loadDestino();
+  }
+
+  // --- Tab 1: Itinerário ---
+  async function loadItinerario() {
+    const loadingEl = document.getElementById("itinerario-loading");
+    const contentEl = document.getElementById("itinerario-content");
+
+    try {
+      const qs = new URLSearchParams({ destination, profile, days });
+      const res = await fetch(`/api/itinerary/generate?${qs.toString()}`);
+      const body = await res.json();
+
+      if (!res.ok) {
+        throw new Error(body.error || "Erro ao gerar itinerário");
+      }
+
+      contentEl.innerHTML = "";
+      body.itinerary.forEach((day) => {
+        const card = document.createElement("div");
+        card.className = "bg-white rounded-xl border border-gray-200 p-5";
+
+        const heading = document.createElement("h3");
+        heading.className = "font-semibold text-blue-600 mb-3";
+        heading.textContent = `Dia ${day.day}`;
+        card.appendChild(heading);
+
+        const list = document.createElement("div");
+        list.className = "space-y-2";
+        day.activities.forEach((activity) => {
+          const row = document.createElement("div");
+          row.className = "flex items-start gap-3 text-sm";
+          row.innerHTML = `
+            <span class="inline-block w-16 shrink-0 font-medium text-gray-500">${activity.period}</span>
+            <span class="text-gray-800">${activity.title}</span>
+          `;
+          list.appendChild(row);
+        });
+        card.appendChild(list);
+        contentEl.appendChild(card);
+      });
+
+      loadingEl.hidden = true;
+      contentEl.hidden = false;
+    } catch (err) {
+      loadingEl.textContent = err.message;
+    }
+  }
+
+  // --- Tab 2: Kit Viagem ---
+  const KIT_ITEMS = [
+    { name: "Mala de viagem com rodinhas 360°", icon: "🧳", query: "mala de viagem com rodinhas" },
+    { name: "Adaptador de tomada universal", icon: "🔌", query: "adaptador de tomada universal viagem" },
+    { name: "Organizadores de mala (packing cubes)", icon: "👜", query: "organizador de mala packing cubes" },
+    { name: "Travesseiro de pescoço inflável", icon: "😴", query: "travesseiro de pescoco viagem" },
+    { name: "Carregador portátil (power bank)", icon: "🔋", query: "carregador portatil power bank" },
+    { name: "Cadeado TSA para mala", icon: "🔒", query: "cadeado tsa mala viagem" },
+  ];
+
+  async function loadKit() {
+    const grid = document.getElementById("kit-grid");
+    grid.innerHTML = "";
+
+    const cards = KIT_ITEMS.map((item) => {
+      const card = document.createElement("div");
+      card.className = "bg-white rounded-xl border border-gray-200 p-5 flex flex-col";
+      card.innerHTML = `
+        <div class="text-3xl mb-3">${item.icon}</div>
+        <h3 class="font-semibold text-gray-900 mb-4 flex-1">${item.name}</h3>
+        <button disabled class="kit-buy-btn w-full bg-gray-200 text-gray-500 rounded-lg py-2 text-sm font-medium cursor-not-allowed">
+          Carregando...
+        </button>
+      `;
+      grid.appendChild(card);
+      return { item, card };
+    });
+
+    await Promise.all(
+      cards.map(async ({ item, card }) => {
+        const button = card.querySelector(".kit-buy-btn");
+        try {
+          const res = await fetch(`/api/products/search?q=${encodeURIComponent(item.query)}&partner=amazon`);
+          const results = await res.json();
+          const productUrl = Array.isArray(results) && results[0] ? results[0].url : null;
+
+          if (!productUrl) {
+            button.textContent = "Indisponível no momento";
+            return;
+          }
+
+          button.disabled = false;
+          button.textContent = "Ver na Amazon →";
+          button.className = "kit-buy-btn w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-semibold transition-colors";
+          button.addEventListener("click", () => handleProductClick(productUrl));
+        } catch (err) {
+          button.textContent = "Erro ao carregar";
+        }
+      })
+    );
+  }
+
+  async function handleProductClick(productUrl) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1000);
+      await fetch("/api/affiliate/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partner: "amazon", product_url: productUrl, destination }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+    } catch (err) {
+      // Tracking failure should never block the redirect.
+    }
+    window.location.href = productUrl;
+  }
+
+  // --- Tab 3: Cupons ---
+  async function loadCupons() {
+    const loadingEl = document.getElementById("cupons-loading");
+    const contentEl = document.getElementById("cupons-content");
+    const emptyEl = document.getElementById("cupons-empty");
+
+    try {
+      const res = await fetch("/api/coupons");
+      const coupons = await res.json();
+
+      if (!res.ok) {
+        throw new Error(coupons.error || "Erro ao carregar cupons");
+      }
+
+      loadingEl.hidden = true;
+
+      if (!coupons.length) {
+        emptyEl.hidden = false;
+        return;
+      }
+
+      contentEl.innerHTML = "";
+      coupons.forEach((coupon) => {
+        const card = document.createElement("div");
+        card.className = "bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between gap-4 flex-wrap";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="font-semibold text-gray-900">${coupon.name || "Cupom"}</h3>
+              ${coupon.is_urgent ? '<span class="text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Urgente</span>' : ""}
+            </div>
+            <p class="text-sm text-gray-500">${coupon.description || ""}</p>
+            ${coupon.partner ? `<p class="text-xs text-gray-400 mt-1">${coupon.partner}</p>` : ""}
+          </div>
+          <div class="flex items-center gap-3">
+            ${coupon.discount ? `<span class="text-blue-600 font-bold">${coupon.discount}</span>` : ""}
+            ${
+              coupon.code
+                ? `<code class="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-mono">${coupon.code}</code>`
+                : ""
+            }
+            ${
+              coupon.url
+                ? `<a href="${coupon.url}" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Usar</a>`
+                : ""
+            }
+          </div>
+        `;
+        contentEl.appendChild(card);
+      });
+
+      contentEl.hidden = false;
+    } catch (err) {
+      loadingEl.textContent = err.message;
+    }
+  }
+
+  // --- Tab 4: Info Destino ---
+  async function loadDestino() {
+    const loadingEl = document.getElementById("destino-loading");
+    const contentEl = document.getElementById("destino-content");
+    const emptyEl = document.getElementById("destino-empty");
+
+    try {
+      const res = await fetch(`/api/destinations/${encodeURIComponent(destination)}`);
+
+      if (res.status === 404) {
+        loadingEl.hidden = true;
+        emptyEl.hidden = false;
+        return;
+      }
+
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body.error || "Erro ao buscar destino");
+      }
+
+      loadingEl.hidden = true;
+
+      const info = body.data && typeof body.data === "object" ? body.data : {};
+      const entries = Object.entries(info);
+
+      contentEl.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-900 mb-4">${body.city}</h3>
+        ${
+          entries.length
+            ? `<dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                ${entries
+                  .map(
+                    ([key, value]) => `
+                      <div>
+                        <dt class="text-xs uppercase tracking-wide text-gray-400">${key}</dt>
+                        <dd class="text-gray-800 font-medium">${typeof value === "object" ? JSON.stringify(value) : value}</dd>
+                      </div>
+                    `
+                  )
+                  .join("")}
+              </dl>`
+            : `<p class="text-gray-500">Sem detalhes adicionais cadastrados para este destino.</p>`
+        }
+      `;
+      contentEl.hidden = false;
+    } catch (err) {
+      loadingEl.textContent = err.message;
+    }
+  }
+
+  // Load the first tab immediately.
+  if (destination) {
+    loadTab("itinerario");
+  }
+})();
+</script>
+</body>
+</html>
