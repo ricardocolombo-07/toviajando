@@ -64,7 +64,7 @@
     font-size: 0.9rem;
     margin-bottom: 6px;
   }
-  input[type="text"], input[type="number"] {
+  input[type="text"] {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border);
@@ -121,12 +121,6 @@
     color: var(--primary-dark);
     font-weight: 600;
   }
-  .days-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .days-row input { max-width: 100px; }
   button {
     font-family: inherit;
     font-size: 1rem;
@@ -185,12 +179,14 @@
 <body>
 <div class="wrap">
   <h1>Vamos planejar sua viagem</h1>
-  <p class="subtitle">Escolha o destino, seu perfil de viagem e quantos dias vai ficar.</p>
+  <p class="subtitle">Escolha o destino, seu perfil, orçamento, hospedagem e duração da viagem.</p>
 
   <div class="steps">
     <div class="step-dot active" data-step-dot="1"></div>
     <div class="step-dot" data-step-dot="2"></div>
     <div class="step-dot" data-step-dot="3"></div>
+    <div class="step-dot" data-step-dot="4"></div>
+    <div class="step-dot" data-step-dot="5"></div>
   </div>
 
   <div class="card">
@@ -214,10 +210,34 @@
   </div>
 
   <div class="card">
-    <h2>3. Quantos dias?</h2>
-    <div class="days-row">
-      <input type="number" id="days-input" min="1" max="14" value="3" />
-      <span class="status-msg">dias (1 a 14)</span>
+    <h2>3. Qual é o seu orçamento?</h2>
+    <div class="profiles" id="budgets">
+      <div class="profile-option" data-budget="ate-1000">Até R$ 1.000</div>
+      <div class="profile-option" data-budget="1000-2500">R$ 1.000 - R$ 2.500</div>
+      <div class="profile-option" data-budget="2500-5000">R$ 2.500 - R$ 5.000</div>
+      <div class="profile-option" data-budget="5000-10000">R$ 5.000 - R$ 10.000</div>
+      <div class="profile-option" data-budget="acima-10000">Acima de R$ 10.000</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>4. Que tipo de hospedagem você prefere?</h2>
+    <div class="profiles" id="hotels">
+      <div class="profile-option" data-hotel="economico">Econômico<br>★★-★★★</div>
+      <div class="profile-option" data-hotel="conforto">Conforto<br>★★★-★★★★</div>
+      <div class="profile-option" data-hotel="premium">Premium<br>★★★★-★★★★★</div>
+      <div class="profile-option" data-hotel="luxo">Luxo<br>★★★★★</div>
+      <div class="profile-option" data-hotel="alternativo">Alternativo<br>(Airbnb)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>5. Quanto tempo vai durar a viagem?</h2>
+    <div class="profiles" id="durations">
+      <div class="profile-option" data-duration="1-3">1-3 dias</div>
+      <div class="profile-option" data-duration="4-7">4-7 dias</div>
+      <div class="profile-option" data-duration="8-14">8-14 dias</div>
+      <div class="profile-option" data-duration="15+">15+ dias</div>
     </div>
   </div>
 
@@ -236,7 +256,9 @@
   const destinationInput = document.getElementById("destination-input");
   const suggestionsBox = document.getElementById("suggestions");
   const profilesBox = document.getElementById("profiles");
-  const daysInput = document.getElementById("days-input");
+  const budgetsBox = document.getElementById("budgets");
+  const hotelsBox = document.getElementById("hotels");
+  const durationsBox = document.getElementById("durations");
   const previewBtn = document.getElementById("preview-btn");
   const previewStatus = document.getElementById("preview-status");
   const previewCard = document.getElementById("preview-card");
@@ -244,23 +266,52 @@
   const fullItineraryBtn = document.getElementById("full-itinerary-btn");
   const stepDots = document.querySelectorAll("[data-step-dot]");
 
+  // Trip duration is stored as a bucket (matches the wizard's UI and the
+  // "days" URL param planner.html reads) but the itinerary preview API
+  // needs a concrete day count, so each bucket maps to a representative
+  // number of days.
+  const DURATION_ITINERARY_DAYS = { "1-3": 2, "4-7": 5, "8-14": 10, "15+": 14 };
+
   const state = {
     destination: "",
     profile: "",
-    days: 3,
+    budget: "",
+    hotel: "",
+    duration: "",
   };
 
   let debounceTimer = null;
 
   function updateStepDots() {
-    const completed = [Boolean(state.destination), Boolean(state.profile), state.days > 0].filter(Boolean).length;
+    const completed = [state.destination, state.profile, state.budget, state.hotel, state.duration].filter(
+      Boolean
+    ).length;
     stepDots.forEach((dot, i) => {
       dot.classList.toggle("active", i < Math.max(completed, 1));
     });
   }
 
   function updatePreviewButton() {
-    previewBtn.disabled = !(state.destination && state.profile && state.days >= 1 && state.days <= 14);
+    previewBtn.disabled = !(
+      state.destination &&
+      state.profile &&
+      state.budget &&
+      state.hotel &&
+      state.duration
+    );
+  }
+
+  function setupPillGroup(container, stateKey, datasetKey) {
+    container.addEventListener("click", (e) => {
+      const option = e.target.closest(".profile-option");
+      if (!option) return;
+      container.querySelectorAll(".profile-option").forEach((el) => el.classList.remove("selected"));
+      option.classList.add("selected");
+      state[stateKey] = option.dataset[datasetKey];
+      previewCard.hidden = true;
+      updatePreviewButton();
+      updateStepDots();
+    });
   }
 
   destinationInput.addEventListener("input", () => {
@@ -328,24 +379,10 @@
     }
   });
 
-  profilesBox.addEventListener("click", (e) => {
-    const option = e.target.closest(".profile-option");
-    if (!option) return;
-    document.querySelectorAll(".profile-option").forEach((el) => el.classList.remove("selected"));
-    option.classList.add("selected");
-    state.profile = option.dataset.profile;
-    previewCard.hidden = true;
-    updatePreviewButton();
-    updateStepDots();
-  });
-
-  daysInput.addEventListener("input", () => {
-    const value = parseInt(daysInput.value, 10);
-    state.days = Number.isNaN(value) ? 0 : value;
-    previewCard.hidden = true;
-    updatePreviewButton();
-    updateStepDots();
-  });
+  setupPillGroup(profilesBox, "profile", "profile");
+  setupPillGroup(budgetsBox, "budget", "budget");
+  setupPillGroup(hotelsBox, "hotel", "hotel");
+  setupPillGroup(durationsBox, "duration", "duration");
 
   previewBtn.addEventListener("click", async () => {
     previewStatus.hidden = false;
@@ -357,7 +394,7 @@
       const params = new URLSearchParams({
         destination: state.destination,
         profile: state.profile,
-        days: String(state.days),
+        days: String(DURATION_ITINERARY_DAYS[state.duration]),
       });
       const res = await fetch(`/api/itinerary/generate?${params.toString()}`);
       const body = await res.json();
@@ -403,7 +440,9 @@
     const params = new URLSearchParams({
       destination: state.destination,
       profile: state.profile,
-      days: String(state.days),
+      budget: state.budget,
+      hotel: state.hotel,
+      days: state.duration,
     });
     window.location.href = `planner.html?${params.toString()}`;
   });

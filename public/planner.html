@@ -45,6 +45,9 @@
     <button data-tab="destino" class="tab-btn whitespace-nowrap px-4 py-3 text-sm border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors">
       📍 Info Destino
     </button>
+    <button data-tab="hospedagem" class="tab-btn whitespace-nowrap px-4 py-3 text-sm border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors">
+      🏨 Hospedagem
+    </button>
   </nav>
 
   <!-- Tab 1: Calendário + Itinerário -->
@@ -75,6 +78,11 @@
     </div>
   </section>
 
+  <!-- Tab 5: Hospedagem -->
+  <section id="panel-hospedagem" class="tab-panel" hidden>
+    <div id="hospedagem-content" class="space-y-4"></div>
+  </section>
+
 </main>
 
 <script>
@@ -82,7 +90,9 @@
   const params = new URLSearchParams(window.location.search);
   const destination = params.get("destination") || "";
   const profile = params.get("profile") || "";
-  const days = params.get("days") || "";
+  const days = params.get("days") || ""; // duration bucket, e.g. "4-7" (see DURATION_LABELS)
+  const budget = params.get("budget") || "";
+  const hotel = params.get("hotel") || "";
 
   const headerTitle = document.getElementById("header-title");
   const headerSubtitle = document.getElementById("header-subtitle");
@@ -97,6 +107,31 @@
     geral: "Geral",
   };
 
+  const BUDGET_LABELS = {
+    "ate-1000": "Até R$ 1.000",
+    "1000-2500": "R$ 1.000 - R$ 2.500",
+    "2500-5000": "R$ 2.500 - R$ 5.000",
+    "5000-10000": "R$ 5.000 - R$ 10.000",
+    "acima-10000": "Acima de R$ 10.000",
+  };
+
+  const HOTEL_LABELS = {
+    economico: "Econômico (★★-★★★)",
+    conforto: "Conforto (★★★-★★★★)",
+    premium: "Premium (★★★★-★★★★★)",
+    luxo: "Luxo (★★★★★)",
+    alternativo: "Alternativo / Airbnb",
+  };
+
+  const DURATION_LABELS = { "1-3": "1-3 dias", "4-7": "4-7 dias", "8-14": "8-14 dias", "15+": "15+ dias" };
+
+  // The itinerary preview API needs a concrete day count; duration is a
+  // bucket (from the wizard) so map it to a representative number, falling
+  // back to parsing `days` directly for links built before this bucket
+  // format existed.
+  const DURATION_ITINERARY_DAYS = { "1-3": 2, "4-7": 5, "8-14": 10, "15+": 14 };
+  const itineraryDays = DURATION_ITINERARY_DAYS[days] || parseInt(days, 10) || 3;
+
   function showError(message) {
     errorBanner.textContent = message;
     errorBanner.hidden = false;
@@ -108,8 +143,13 @@
     showError("Faltam parâmetros na URL. Volte para o assistente e escolha um destino.");
   } else {
     headerTitle.textContent = destination;
-    const profileLabel = PROFILE_LABELS[profile] || profile || "—";
-    headerSubtitle.textContent = `${profileLabel} · ${days || "?"} dia(s)`;
+    const parts = [
+      PROFILE_LABELS[profile] || profile,
+      DURATION_LABELS[days] || (days ? `${days} dia(s)` : ""),
+      BUDGET_LABELS[budget] || budget,
+      HOTEL_LABELS[hotel] || hotel,
+    ].filter(Boolean);
+    headerSubtitle.textContent = parts.length ? parts.join(" · ") : "—";
   }
 
   // --- Tabs ---
@@ -119,9 +159,10 @@
     kit: document.getElementById("panel-kit"),
     cupons: document.getElementById("panel-cupons"),
     destino: document.getElementById("panel-destino"),
+    hospedagem: document.getElementById("panel-hospedagem"),
   };
 
-  const loaded = { itinerario: false, kit: false, cupons: false, destino: false };
+  const loaded = { itinerario: false, kit: false, cupons: false, destino: false, hospedagem: false };
 
   tabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -141,6 +182,7 @@
     if (tab === "kit") loadKit();
     if (tab === "cupons") loadCupons();
     if (tab === "destino") loadDestino();
+    if (tab === "hospedagem") loadHospedagem();
   }
 
   // --- Tab 1: Itinerário ---
@@ -149,7 +191,7 @@
     const contentEl = document.getElementById("itinerario-content");
 
     try {
-      const qs = new URLSearchParams({ destination, profile, days });
+      const qs = new URLSearchParams({ destination, profile, days: String(itineraryDays), budget, hotel });
       const res = await fetch(`/api/itinerary/generate?${qs.toString()}`);
       const body = await res.json();
 
@@ -363,6 +405,49 @@
     } catch (err) {
       loadingEl.textContent = err.message;
     }
+  }
+
+  // --- Tab 5: Hospedagem ---
+  // No hotel data source exists yet (no Booking/Airbnb API integration), so
+  // this links out to real search results pre-filtered by destination only
+  // -- the budget/hotel selections shape which search we recommend, not a
+  // fabricated list of specific properties/prices. Outbound links to CJ
+  // Affiliate network merchants (Booking, etc.) are auto-tagged by the
+  // am.js script loaded at the bottom of this page.
+  function loadHospedagem() {
+    const contentEl = document.getElementById("hospedagem-content");
+    const destinationQuery = encodeURIComponent(destination);
+
+    const bookingUrl = `https://www.booking.com/searchresults.html?ss=${destinationQuery}`;
+    const airbnbUrl = `https://www.airbnb.com/s/${destinationQuery}/homes`;
+
+    const hotelLabel = HOTEL_LABELS[hotel] || "Hospedagem";
+    const budgetLabel = BUDGET_LABELS[budget] || "";
+
+    const recommendations =
+      hotel === "alternativo"
+        ? [
+            { name: "Airbnb", desc: "Casas e apartamentos inteiros ou compartilhados", url: airbnbUrl, cta: "Ver no Airbnb" },
+            { name: "Booking.com", desc: "Alternativa: hotéis e pousadas", url: bookingUrl, cta: "Ver no Booking.com" },
+          ]
+        : [
+            { name: "Booking.com", desc: `${hotelLabel}${budgetLabel ? ` · ${budgetLabel}` : ""}`, url: bookingUrl, cta: "Ver no Booking.com" },
+            { name: "Airbnb", desc: "Alternativa: casas e apartamentos", url: airbnbUrl, cta: "Ver no Airbnb" },
+          ];
+
+    contentEl.innerHTML = "";
+    recommendations.forEach((rec) => {
+      const card = document.createElement("div");
+      card.className = "bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between gap-4 flex-wrap";
+      card.innerHTML = `
+        <div>
+          <h3 class="font-semibold text-gray-900">${rec.name}</h3>
+          <p class="text-sm text-gray-500">${rec.desc}</p>
+        </div>
+        <a href="${rec.url}" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap">${rec.cta} →</a>
+      `;
+      contentEl.appendChild(card);
+    });
   }
 
   // Load the first tab immediately.
