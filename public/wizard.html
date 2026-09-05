@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Planeje sua viagem - TOVIAJANDO</title>
+<style>
+  :root {
+    --primary: #0d7d6f;
+    --primary-dark: #095e53;
+    --bg: #f6f8f7;
+    --card: #ffffff;
+    --border: #e1e6e4;
+    --text: #1b2523;
+    --text-muted: #616f6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+  }
+  p.subtitle {
+    color: var(--text-muted);
+    margin-top: 0;
+    margin-bottom: 28px;
+  }
+  .steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .step-dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+  }
+  .step-dot.active { background: var(--primary); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 1.1rem;
+    margin-top: 0;
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .autocomplete {
+    position: relative;
+  }
+  .suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .suggestions[hidden] { display: none; }
+  .suggestion-item {
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  .suggestion-item:hover, .suggestion-item.highlighted {
+    background: #eef6f4;
+  }
+  .suggestion-empty {
+    padding: 10px 12px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  .profiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+  }
+  .profile-option {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    user-select: none;
+  }
+  .profile-option.selected {
+    border-color: var(--primary);
+    background: #eef6f4;
+    color: var(--primary-dark);
+    font-weight: 600;
+  }
+  .days-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .days-row input { max-width: 100px; }
+  button {
+    font-family: inherit;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    width: 100%;
+  }
+  .btn-primary:disabled {
+    background: #a9c9c4;
+    cursor: not-allowed;
+  }
+  .btn-primary:not(:disabled):hover { background: var(--primary-dark); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--primary-dark);
+    border: 1px solid var(--primary);
+    width: 100%;
+    margin-top: 12px;
+  }
+  .preview-day {
+    border-top: 1px solid var(--border);
+    padding: 14px 0;
+  }
+  .preview-day:first-child { border-top: none; padding-top: 0; }
+  .preview-day h3 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+    color: var(--primary-dark);
+  }
+  .activity {
+    display: flex;
+    gap: 10px;
+    font-size: 0.92rem;
+    margin-bottom: 6px;
+  }
+  .activity .period {
+    color: var(--text-muted);
+    min-width: 60px;
+    font-weight: 600;
+  }
+  .status-msg {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+  .status-msg.error { color: #b3261e; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vamos planejar sua viagem</h1>
+  <p class="subtitle">Escolha o destino, seu perfil de viagem e quantos dias vai ficar.</p>
+
+  <div class="steps">
+    <div class="step-dot active" data-step-dot="1"></div>
+    <div class="step-dot" data-step-dot="2"></div>
+    <div class="step-dot" data-step-dot="3"></div>
+  </div>
+
+  <div class="card">
+    <h2>1. Para onde você vai?</h2>
+    <div class="autocomplete">
+      <label for="destination-input">Destino</label>
+      <input type="text" id="destination-input" placeholder="Digite o nome da cidade..." autocomplete="off" />
+      <div class="suggestions" id="suggestions" hidden></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Qual é o seu perfil de viagem?</h2>
+    <div class="profiles" id="profiles">
+      <div class="profile-option" data-profile="relaxante">Relaxante</div>
+      <div class="profile-option" data-profile="aventura">Aventura</div>
+      <div class="profile-option" data-profile="cultural">Cultural</div>
+      <div class="profile-option" data-profile="familia">Família</div>
+      <div class="profile-option" data-profile="romantico">Romântico</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Quantos dias?</h2>
+    <div class="days-row">
+      <input type="number" id="days-input" min="1" max="14" value="3" />
+      <span class="status-msg">dias (1 a 14)</span>
+    </div>
+  </div>
+
+  <button class="btn-primary" id="preview-btn" disabled>Ver prévia do roteiro</button>
+  <p class="status-msg" id="preview-status" hidden></p>
+
+  <div class="card" id="preview-card" hidden>
+    <h2>Prévia do roteiro</h2>
+    <div id="preview-content"></div>
+    <button class="btn-secondary" id="full-itinerary-btn">Ver Itinerário Completo</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const destinationInput = document.getElementById("destination-input");
+  const suggestionsBox = document.getElementById("suggestions");
+  const profilesBox = document.getElementById("profiles");
+  const daysInput = document.getElementById("days-input");
+  const previewBtn = document.getElementById("preview-btn");
+  const previewStatus = document.getElementById("preview-status");
+  const previewCard = document.getElementById("preview-card");
+  const previewContent = document.getElementById("preview-content");
+  const fullItineraryBtn = document.getElementById("full-itinerary-btn");
+  const stepDots = document.querySelectorAll("[data-step-dot]");
+
+  const state = {
+    destination: "",
+    profile: "",
+    days: 3,
+  };
+
+  let debounceTimer = null;
+
+  function updateStepDots() {
+    const completed = [Boolean(state.destination), Boolean(state.profile), state.days > 0].filter(Boolean).length;
+    stepDots.forEach((dot, i) => {
+      dot.classList.toggle("active", i < Math.max(completed, 1));
+    });
+  }
+
+  function updatePreviewButton() {
+    previewBtn.disabled = !(state.destination && state.profile && state.days >= 1 && state.days <= 14);
+  }
+
+  destinationInput.addEventListener("input", () => {
+    const value = destinationInput.value.trim();
+    state.destination = value;
+    previewCard.hidden = true;
+    updatePreviewButton();
+    updateStepDots();
+
+    clearTimeout(debounceTimer);
+    if (value.length < 2) {
+      suggestionsBox.hidden = true;
+      suggestionsBox.innerHTML = "";
+      return;
+    }
+
+    debounceTimer = setTimeout(() => fetchSuggestions(value), 250);
+  });
+
+  async function fetchSuggestions(query) {
+    try {
+      const res = await fetch(`/api/search/destination?q=${encodeURIComponent(query)}`);
+      if (!res.ok) {
+        suggestionsBox.hidden = true;
+        return;
+      }
+      const results = await res.json();
+      renderSuggestions(results);
+    } catch (err) {
+      suggestionsBox.hidden = true;
+    }
+  }
+
+  function renderSuggestions(results) {
+    suggestionsBox.innerHTML = "";
+    if (!results || results.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "suggestion-empty";
+      empty.textContent = "Nenhum destino encontrado.";
+      suggestionsBox.appendChild(empty);
+      suggestionsBox.hidden = false;
+      return;
+    }
+
+    results.forEach((item) => {
+      const el = document.createElement("div");
+      el.className = "suggestion-item";
+      el.textContent = item.city;
+      el.addEventListener("click", () => {
+        state.destination = item.city;
+        destinationInput.value = item.city;
+        suggestionsBox.hidden = true;
+        previewCard.hidden = true;
+        updatePreviewButton();
+        updateStepDots();
+      });
+      suggestionsBox.appendChild(el);
+    });
+    suggestionsBox.hidden = false;
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".autocomplete")) {
+      suggestionsBox.hidden = true;
+    }
+  });
+
+  profilesBox.addEventListener("click", (e) => {
+    const option = e.target.closest(".profile-option");
+    if (!option) return;
+    document.querySelectorAll(".profile-option").forEach((el) => el.classList.remove("selected"));
+    option.classList.add("selected");
+    state.profile = option.dataset.profile;
+    previewCard.hidden = true;
+    updatePreviewButton();
+    updateStepDots();
+  });
+
+  daysInput.addEventListener("input", () => {
+    const value = parseInt(daysInput.value, 10);
+    state.days = Number.isNaN(value) ? 0 : value;
+    previewCard.hidden = true;
+    updatePreviewButton();
+    updateStepDots();
+  });
+
+  previewBtn.addEventListener("click", async () => {
+    previewStatus.hidden = false;
+    previewStatus.textContent = "Gerando prévia...";
+    previewStatus.classList.remove("error");
+    previewBtn.disabled = true;
+
+    try {
+      const params = new URLSearchParams({
+        destination: state.destination,
+        profile: state.profile,
+        days: String(state.days),
+      });
+      const res = await fetch(`/api/itinerary/generate?${params.toString()}`);
+      const body = await res.json();
+
+      if (!res.ok) {
+        throw new Error(body.error || "Erro ao gerar prévia");
+      }
+
+      renderPreview(body);
+      previewStatus.hidden = true;
+    } catch (err) {
+      previewStatus.textContent = err.message;
+      previewStatus.classList.add("error");
+    } finally {
+      updatePreviewButton();
+    }
+  });
+
+  function renderPreview(data) {
+    previewContent.innerHTML = "";
+    data.itinerary.forEach((day) => {
+      const dayEl = document.createElement("div");
+      dayEl.className = "preview-day";
+
+      const heading = document.createElement("h3");
+      heading.textContent = `Dia ${day.day}`;
+      dayEl.appendChild(heading);
+
+      day.activities.forEach((activity) => {
+        const activityEl = document.createElement("div");
+        activityEl.className = "activity";
+        activityEl.innerHTML = `<span class="period">${activity.period}</span><span>${activity.title}</span>`;
+        dayEl.appendChild(activityEl);
+      });
+
+      previewContent.appendChild(dayEl);
+    });
+
+    previewCard.hidden = false;
+  }
+
+  fullItineraryBtn.addEventListener("click", () => {
+    const params = new URLSearchParams({
+      destination: state.destination,
+      profile: state.profile,
+      days: String(state.days),
+    });
+    window.location.href = `planner.html?${params.toString()}`;
+  });
+
+  updatePreviewButton();
+  updateStepDots();
+})();
+</script>
+</body>
+</html>
