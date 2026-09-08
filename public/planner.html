@@ -95,6 +95,7 @@
   const startDate = params.get("start_date") || "";
   const endDate = params.get("end_date") || "";
   const legacyDays = params.get("days") || ""; // older links used a duration bucket/number instead of dates
+  const requestedTab = params.get("tab") || "";
 
   const headerTitle = document.getElementById("header-title");
   const headerSubtitle = document.getElementById("header-subtitle");
@@ -156,9 +157,14 @@
   }
 
   if (!destination) {
-    headerTitle.textContent = "Nenhum destino selecionado";
-    headerSubtitle.textContent = "";
-    showError("Faltam parâmetros na URL. Volte para o assistente e escolha um destino.");
+    if (requestedTab === "kit") {
+      headerTitle.textContent = "Acessórios de viagem";
+      headerSubtitle.textContent = "Itens recomendados para qualquer viagem";
+    } else {
+      headerTitle.textContent = "Nenhum destino selecionado";
+      headerSubtitle.textContent = "";
+      showError("Faltam parâmetros na URL. Volte para o assistente e escolha um destino.");
+    }
   } else {
     headerTitle.textContent = destination;
     const parts = [
@@ -194,7 +200,7 @@
   });
 
   function loadTab(tab) {
-    if (loaded[tab] || !destination) return;
+    if (loaded[tab] || (!destination && tab !== "kit")) return;
     loaded[tab] = true;
     if (tab === "itinerario") loadItinerario();
     if (tab === "kit") loadKit();
@@ -250,13 +256,45 @@
   }
 
   // --- Tab 2: Kit Viagem ---
+  // Reference photos (Wikimedia Commons, CC BY / CC BY-SA — credited below each
+  // card) since KIT_ITEMS is a generic list, not tied to a specific Amazon SKU.
   const KIT_ITEMS = [
-    { name: "Mala de viagem com rodinhas 360°", icon: "🧳", query: "mala de viagem com rodinhas" },
-    { name: "Adaptador de tomada universal", icon: "🔌", query: "adaptador de tomada universal viagem" },
-    { name: "Organizadores de mala (packing cubes)", icon: "👜", query: "organizador de mala packing cubes" },
-    { name: "Travesseiro de pescoço inflável", icon: "😴", query: "travesseiro de pescoco viagem" },
-    { name: "Carregador portátil (power bank)", icon: "🔋", query: "carregador portatil power bank" },
-    { name: "Cadeado TSA para mala", icon: "🔒", query: "cadeado tsa mala viagem" },
+    {
+      name: "Mala de viagem com rodinhas 360°",
+      query: "mala de viagem com rodinhas",
+      image: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Samsonite_Pro-DLX_4_Rolling_Tote_16.4_Inch_Black.jpg/500px-Samsonite_Pro-DLX_4_Rolling_Tote_16.4_Inch_Black.jpg",
+      credit: "Florian Fuchs",
+    },
+    {
+      name: "Adaptador de tomada universal",
+      query: "adaptador de tomada universal viagem",
+      image: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/72500_Reise-Stecker_komplett_D_RGB.jpg/500px-72500_Reise-Stecker_komplett_D_RGB.jpg",
+      credit: "Cephira",
+    },
+    {
+      name: "Organizadores de mala (packing cubes)",
+      query: "organizador de mala packing cubes",
+      image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Granite_Gear_compression_stuff_sack_%288609262351%29.jpg/500px-Granite_Gear_compression_stuff_sack_%288609262351%29.jpg",
+      credit: "Gronkca",
+    },
+    {
+      name: "Travesseiro de pescoço inflável",
+      query: "travesseiro de pescoco viagem",
+      image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Travel_Pillow.jpg/500px-Travel_Pillow.jpg",
+      credit: "Takahiro Yamagiwa",
+    },
+    {
+      name: "Carregador portátil (power bank)",
+      query: "carregador portatil power bank",
+      image: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Power_bank.JPG/500px-Power_bank.JPG",
+      credit: "Ilya Plekhanov",
+    },
+    {
+      name: "Cadeado TSA para mala",
+      query: "cadeado tsa mala viagem",
+      image: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/TSA_Lock.JPG/500px-TSA_Lock.JPG",
+      credit: "RudolfSimon",
+    },
   ];
 
   async function loadKit() {
@@ -267,8 +305,9 @@
       const card = document.createElement("div");
       card.className = "bg-white rounded-xl border border-gray-200 p-5 flex flex-col";
       card.innerHTML = `
-        <div class="text-3xl mb-3">${item.icon}</div>
-        <h3 class="font-semibold text-gray-900 mb-4 flex-1">${item.name}</h3>
+        <img src="${item.image}" alt="${item.name}" loading="lazy" class="w-full h-36 object-cover rounded-lg mb-3 bg-gray-100" />
+        <h3 class="font-semibold text-gray-900 mb-1 flex-1">${item.name}</h3>
+        <p class="text-[11px] text-gray-400 mb-3">Foto: ${item.credit} · Wikimedia Commons</p>
         <button disabled class="kit-buy-btn w-full bg-gray-200 text-gray-500 rounded-lg py-2 text-sm font-medium cursor-not-allowed">
           Carregando...
         </button>
@@ -435,22 +474,25 @@
   function loadHospedagem() {
     const contentEl = document.getElementById("hospedagem-content");
     const destinationQuery = encodeURIComponent(destination);
+    const hasDates = Boolean(startDate && endDate);
+    const dateParams = hasDates ? `checkin=${startDate}&checkout=${endDate}` : "";
 
-    const bookingUrl = `https://www.booking.com/searchresults.html?ss=${destinationQuery}`;
-    const airbnbUrl = `https://www.airbnb.com/s/${destinationQuery}/homes`;
+    const bookingUrl = `https://www.booking.com/searchresults.html?ss=${destinationQuery}${dateParams ? `&${dateParams}` : ""}`;
+    const airbnbUrl = `https://www.airbnb.com/s/${destinationQuery}/homes${dateParams ? `?${dateParams}` : ""}`;
 
     const hotelLabel = HOTEL_LABELS[hotel] || "Hospedagem";
     const budgetLabel = BUDGET_LABELS[budget] || "";
+    const datesSuffix = hasDates ? ` · ${dateRangeLabel}` : "";
 
     const recommendations =
       hotel === "alternativo"
         ? [
-            { name: "Airbnb", desc: "Casas e apartamentos inteiros ou compartilhados", url: airbnbUrl, cta: "Ver no Airbnb" },
-            { name: "Booking.com", desc: "Alternativa: hotéis e pousadas", url: bookingUrl, cta: "Ver no Booking.com" },
+            { name: "Airbnb", desc: `Casas e apartamentos inteiros ou compartilhados${datesSuffix}`, url: airbnbUrl, cta: "Ver no Airbnb" },
+            { name: "Booking.com", desc: `Alternativa: hotéis e pousadas${datesSuffix}`, url: bookingUrl, cta: "Ver no Booking.com" },
           ]
         : [
-            { name: "Booking.com", desc: `${hotelLabel}${budgetLabel ? ` · ${budgetLabel}` : ""}`, url: bookingUrl, cta: "Ver no Booking.com" },
-            { name: "Airbnb", desc: "Alternativa: casas e apartamentos", url: airbnbUrl, cta: "Ver no Airbnb" },
+            { name: "Booking.com", desc: `${hotelLabel}${budgetLabel ? ` · ${budgetLabel}` : ""}${datesSuffix}`, url: bookingUrl, cta: "Ver no Booking.com" },
+            { name: "Airbnb", desc: `Alternativa: casas e apartamentos${datesSuffix}`, url: airbnbUrl, cta: "Ver no Airbnb" },
           ];
 
     contentEl.innerHTML = "";
@@ -468,8 +510,16 @@
     });
   }
 
-  // Load the first tab immediately.
-  if (destination) {
+  // Load the first tab immediately: honor a requested tab (e.g. arriving
+  // straight at Kit Viagem from the landing page's Acessórios link), else
+  // default to the itinerary once a destination is known.
+  if (requestedTab && panels[requestedTab]) {
+    tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === requestedTab));
+    Object.entries(panels).forEach(([key, panel]) => {
+      panel.hidden = key !== requestedTab;
+    });
+    loadTab(requestedTab);
+  } else if (destination) {
     loadTab("itinerario");
   }
 })();
