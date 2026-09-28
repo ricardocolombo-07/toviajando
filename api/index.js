@@ -81,6 +81,84 @@ app.get("/api/search/destination", async (req, res) => {
   res.json(data);
 });
 
+// --- Travel search links (flights + hotels) ---
+
+// Each builder receives { destination, origin, startDate, endDate, travelers }
+// and an optional affiliate id (from env). Without an id the link is still
+// returned, just untagged. Google Flights/Hotels have no affiliate program.
+// Booking.com/Expedia/Hotels.com are CJ merchants: the CJ am.js script on the
+// page tags those. The Skyscanner/Booking param names below should be checked
+// against your affiliate panel before relying on them for commission.
+const TRAVEL_PARTNERS = {
+  flights: [
+    {
+      id: "google-flights",
+      name: "Google Flights",
+      desc: "Compare tarifas e acompanhe preços",
+      build: ({ destination, origin, startDate, endDate }) => {
+        const q = `Voos${origin ? ` de ${origin}` : ""} para ${destination}${startDate ? ` em ${startDate}` : ""}${endDate ? ` volta ${endDate}` : ""}`;
+        return `https://www.google.com/travel/flights?hl=pt-BR&q=${encodeURIComponent(q)}`;
+      },
+    },
+    {
+      id: "skyscanner",
+      name: "Skyscanner",
+      desc: "Busca de passagens, inclusive o mês inteiro",
+      affiliateId: process.env.SKYSCANNER_AFFILIATE_ID,
+      build: (_, id) => `https://www.skyscanner.com.br/${id ? `?associateid=${encodeURIComponent(id)}` : ""}`,
+    },
+    {
+      id: "kayak",
+      name: "Kayak",
+      desc: "Compare companhias e combine trechos",
+      build: () => "https://www.kayak.com.br/flights",
+    },
+  ],
+  hotels: [
+    {
+      id: "hotels-com",
+      name: "Hotels.com",
+      desc: "Programa de recompensas: a cada 10 diárias, 1 grátis",
+      build: ({ destination, startDate, endDate, travelers }) =>
+        `https://br.hotels.com/Hotel-Search?destination=${encodeURIComponent(destination)}${startDate && endDate ? `&startDate=${startDate}&endDate=${endDate}` : ""}&adults=${travelers}`,
+    },
+    {
+      id: "expedia",
+      name: "Expedia",
+      desc: "Pacotes de voo + hotel e preços para membros",
+      build: ({ destination, startDate, endDate, travelers }) =>
+        `https://www.expedia.com.br/Hotel-Search?destination=${encodeURIComponent(destination)}${startDate && endDate ? `&startDate=${startDate}&endDate=${endDate}` : ""}&adults=${travelers}`,
+    },
+    {
+      id: "google-hotels",
+      name: "Google Hotels",
+      desc: "Compara preços de vários sites em um só lugar",
+      build: ({ destination }) =>
+        `https://www.google.com/travel/hotels?hl=pt-BR&q=${encodeURIComponent(`hotéis em ${destination}`)}`,
+    },
+  ],
+};
+
+app.get("/api/travel/links", (req, res) => {
+  const { destination, origin, start_date, end_date, travelers } = req.query;
+  if (!destination) {
+    return res.status(400).json({ error: "Query param 'destination' is required" });
+  }
+
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  const ctx = {
+    destination: String(destination),
+    origin: origin ? String(origin) : "",
+    startDate: isoDate.test(start_date) ? start_date : "",
+    endDate: isoDate.test(end_date) ? end_date : "",
+    travelers: Math.min(20, Math.max(1, parseInt(travelers, 10) || 1)),
+  };
+
+  const render = (list) =>
+    list.map((p) => ({ id: p.id, name: p.name, desc: p.desc, url: p.build(ctx, p.affiliateId) }));
+  res.json({ flights: render(TRAVEL_PARTNERS.flights), hotels: render(TRAVEL_PARTNERS.hotels) });
+});
+
 // --- Products (affiliate search links) ---
 
 app.get("/api/products/partners", (req, res) => {

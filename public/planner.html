@@ -529,6 +529,57 @@
       `;
       contentEl.appendChild(card);
     });
+
+    loadTravelSearchLinks(contentEl);
+  }
+
+  // Extra flight + hotel search engines, built server-side so affiliate ids
+  // stay in env vars and never ship in this page.
+  async function loadTravelSearchLinks(contentEl) {
+    try {
+      const qs = new URLSearchParams({ destination, travelers: travelers || "1" });
+      if (params.get("origin")) qs.set("origin", params.get("origin"));
+      if (startDate && endDate) {
+        qs.set("start_date", startDate);
+        qs.set("end_date", endDate);
+      }
+      const res = await fetch(`/api/travel/links?${qs.toString()}`);
+      if (!res.ok) return;
+      const body = await res.json();
+
+      [["✈️ Passagens aéreas", body.flights], ["🏨 Mais opções de hotel", body.hotels]].forEach(([title, items]) => {
+        const heading = document.createElement("h3");
+        heading.className = "font-semibold text-gray-900 pt-4";
+        heading.textContent = title;
+        contentEl.appendChild(heading);
+
+        items.forEach((item) => {
+          const card = document.createElement("div");
+          card.className = "bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between gap-4 flex-wrap";
+
+          const info = document.createElement("div");
+          const name = document.createElement("h4");
+          name.className = "font-semibold text-gray-900";
+          name.textContent = item.name;
+          const desc = document.createElement("p");
+          desc.className = "text-sm text-gray-500";
+          desc.textContent = item.desc;
+          info.append(name, desc);
+
+          const link = document.createElement("a");
+          link.href = item.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer sponsored";
+          link.className = "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap";
+          link.textContent = `Buscar no ${item.name} →`;
+
+          card.append(info, link);
+          contentEl.appendChild(card);
+        });
+      });
+    } catch (err) {
+      // Extra links are a bonus; the Booking/Airbnb cards above still work.
+    }
   }
 
   // Load the first tab immediately: honor a requested tab (e.g. arriving
