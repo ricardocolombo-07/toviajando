@@ -185,12 +185,39 @@ const CATEGORY_TITLES = {
   cultura: (destination) => `Imersão cultural em ${destination}`,
   relax: (destination) => `Dia de relaxamento em ${destination}`,
   esportes: (destination) => `Atividades de aventura em ${destination}`,
+  fotografia: (destination) => `Roteiro fotográfico em ${destination}`,
+  noite: (destination) => `Vida noturna em ${destination}`,
+  compras: (destination) => `Compras e mercados locais em ${destination}`,
+  bemestar: (destination) => `Momento de bem-estar e spa em ${destination}`,
+};
+
+// Wizard interest ids -> itinerary categories.
+const INTEREST_CATEGORIES = {
+  gastronomia: "gastronomia",
+  natureza: "natureza",
+  praia: "relax",
+  cultura: "cultura",
+  aventura: "esportes",
+  noite: "noite",
+  compras: "compras",
+  fotografia: "fotografia",
+  bemestar: "bemestar",
+};
+
+// Never schedule more than 3 major activities in a day, whatever the pace.
+const MAX_ACTIVITIES_PER_DAY = 3;
+
+// Activities per day by travel pace (default keeps the original 2).
+const PACE_PERIODS = {
+  relaxado: ["Manhã"],
+  moderado: ["Manhã", "Tarde"],
+  intenso: ["Manhã", "Tarde", "Noite"],
 };
 
 // Stateless preview: builds a sample day-by-day itinerary without touching
 // the database. Used by the wizard before the user commits to a full plan.
 app.get("/api/itinerary/generate", (req, res) => {
-  const { destination, profile, days } = req.query;
+  const { destination, profile, days, pace, interests, travelers } = req.query;
   const numDays = Number(days);
 
   if (!destination) {
@@ -200,24 +227,30 @@ app.get("/api/itinerary/generate", (req, res) => {
     return res.status(400).json({ error: "Query param 'days' must be an integer between 1 and 14" });
   }
 
-  const categories = PROFILE_CATEGORIES[profile] || PROFILE_CATEGORIES.geral;
+  // Selected interests come first so they dominate the rotation; the profile's
+  // categories fill in behind them.
+  const interestCategories = String(interests || "")
+    .split(",")
+    .map((id) => INTEREST_CATEGORIES[id.trim()])
+    .filter(Boolean);
+  const profileCategories = PROFILE_CATEGORIES[profile] || PROFILE_CATEGORIES.geral;
+  const categories = [...new Set([...interestCategories, ...profileCategories])];
+  const periods = (PACE_PERIODS[pace] || PACE_PERIODS.moderado).slice(0, MAX_ACTIVITIES_PER_DAY);
   const itinerary = [];
 
   for (let day = 1; day <= numDays; day++) {
-    const morningCategory = categories[(day * 2) % categories.length];
-    const afternoonCategory = categories[(day * 2 + 1) % categories.length];
-    itinerary.push({
-      day,
-      activities: [
-        { period: "Manhã", category: morningCategory, title: CATEGORY_TITLES[morningCategory](destination) },
-        { period: "Tarde", category: afternoonCategory, title: CATEGORY_TITLES[afternoonCategory](destination) },
-      ],
+    const activities = periods.map((period, i) => {
+      const category = categories[(day * periods.length + i) % categories.length];
+      return { period, category, title: CATEGORY_TITLES[category](destination) };
     });
+    itinerary.push({ day, activities });
   }
 
   res.json({
     destination,
     profile: profile || "geral",
+    pace: PACE_PERIODS[pace] ? pace : "moderado",
+    travelers: Number(travelers) || 1,
     days: numDays,
     itinerary,
   });

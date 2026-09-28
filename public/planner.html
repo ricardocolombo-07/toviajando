@@ -53,6 +53,7 @@
   <!-- Tab 1: Calendário + Itinerário -->
   <section id="panel-itinerario" class="tab-panel">
     <div id="itinerario-loading" class="text-center py-16 text-gray-400">Gerando itinerário...</div>
+    <div id="budget-reserve" hidden class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 px-4 py-3 text-sm"></div>
     <div id="itinerario-content" hidden class="space-y-4"></div>
   </section>
 
@@ -96,6 +97,9 @@
   const endDate = params.get("end_date") || "";
   const legacyDays = params.get("days") || ""; // older links used a duration bucket/number instead of dates
   const requestedTab = params.get("tab") || "";
+  const pace = params.get("pace") || "";
+  const interests = params.get("interests") || "";
+  const travelers = params.get("travelers") || "";
 
   const headerTitle = document.getElementById("header-title");
   const headerSubtitle = document.getElementById("header-subtitle");
@@ -117,6 +121,22 @@
     "5000-10000": "R$ 5.000 - R$ 10.000",
     "acima-10000": "Acima de R$ 10.000",
   };
+
+  // Upper bound of each budget range, used to suggest a 10% contingency reserve.
+  const BUDGET_MAX = { "ate-1000": 1000, "1000-2500": 2500, "2500-5000": 5000, "5000-10000": 10000 };
+  const RESERVE_RATE = 0.1;
+
+  function renderBudgetReserve() {
+    const box = document.getElementById("budget-reserve");
+    const label = BUDGET_LABELS[budget];
+    if (!label) return;
+    const brl = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+    const max = BUDGET_MAX[budget];
+    box.textContent = max
+      ? `💡 Reserve 10% do orçamento para imprevistos: com teto de ${brl(max)}, planeje gastar até ${brl(max * (1 - RESERVE_RATE))} e guarde ${brl(max * RESERVE_RATE)}.`
+      : "💡 Reserve 10% do orçamento para imprevistos e planeje gastar o restante.";
+    box.hidden = false;
+  }
 
   const HOTEL_LABELS = {
     economico: "Econômico (★★-★★★)",
@@ -174,6 +194,7 @@
       HOTEL_LABELS[hotel] || hotel,
     ].filter(Boolean);
     headerSubtitle.textContent = parts.length ? parts.join(" · ") : "—";
+    renderBudgetReserve();
   }
 
   // --- Tabs ---
@@ -215,7 +236,7 @@
     const contentEl = document.getElementById("itinerario-content");
 
     try {
-      const qs = new URLSearchParams({ destination, profile, days: String(itineraryDays), budget, hotel });
+      const qs = new URLSearchParams({ destination, profile, days: String(itineraryDays), budget, hotel, pace, interests, travelers });
       const res = await fetch(`/api/itinerary/generate?${qs.toString()}`);
       const body = await res.json();
 

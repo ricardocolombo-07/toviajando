@@ -64,7 +64,7 @@
     font-size: 0.9rem;
     margin-bottom: 6px;
   }
-  input[type="text"], input[type="date"] {
+  input[type="text"], input[type="date"], input[type="number"] {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border);
@@ -187,6 +187,9 @@
     <div class="step-dot" data-step-dot="3"></div>
     <div class="step-dot" data-step-dot="4"></div>
     <div class="step-dot" data-step-dot="5"></div>
+    <div class="step-dot" data-step-dot="6"></div>
+    <div class="step-dot" data-step-dot="7"></div>
+    <div class="step-dot" data-step-dot="8"></div>
   </div>
 
   <div class="card">
@@ -247,6 +250,63 @@
     <p class="status-msg error" id="dates-error" hidden>A data de volta deve ser igual ou posterior à data de ida.</p>
   </div>
 
+  <div class="card">
+    <h2>6. Com quem você vai viajar?</h2>
+    <div class="profiles" id="companions">
+      <div class="profile-option" data-companion="solo">Sozinho(a)</div>
+      <div class="profile-option" data-companion="casal">Casal</div>
+      <div class="profile-option" data-companion="familia">Família</div>
+      <div class="profile-option" data-companion="grupo">Grupo de amigos</div>
+    </div>
+    <div style="margin-top: 14px; max-width: 200px">
+      <label for="travelers-input">Quantas pessoas?</label>
+      <input type="number" id="travelers-input" min="1" max="20" value="1" />
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>7. Qual o ritmo da viagem?</h2>
+    <div class="profiles" id="paces">
+      <div class="profile-option" data-pace="relaxado">Relaxado<br>1 atividade/dia</div>
+      <div class="profile-option" data-pace="moderado">Moderado<br>2 atividades/dia</div>
+      <div class="profile-option" data-pace="intenso">Intenso<br>3 atividades/dia</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>8. O que você mais gosta de fazer?</h2>
+    <p class="status-msg" style="margin-top: -6px">Escolha um ou mais interesses.</p>
+    <div class="profiles" id="interests">
+      <div class="profile-option" data-interest="gastronomia">Gastronomia</div>
+      <div class="profile-option" data-interest="cultura">Cultura e história</div>
+      <div class="profile-option" data-interest="natureza">Natureza</div>
+      <div class="profile-option" data-interest="praia">Praia e relax</div>
+      <div class="profile-option" data-interest="aventura">Aventura</div>
+      <div class="profile-option" data-interest="noite">Vida noturna</div>
+      <div class="profile-option" data-interest="compras">Compras</div>
+      <div class="profile-option" data-interest="fotografia">Fotografia</div>
+      <div class="profile-option" data-interest="bemestar">Bem-estar e spa</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>9. Preferências extras <span style="font-weight: 400; color: var(--text-muted)">(opcional)</span></h2>
+    <label for="origin-input">Cidade de origem</label>
+    <input type="text" id="origin-input" placeholder="Ex.: São Paulo" autocomplete="off" />
+    <p class="status-msg" style="margin-bottom: 6px">Restrições alimentares</p>
+    <div class="profiles" id="diets">
+      <div class="profile-option" data-diet="vegetariano">Vegetariano</div>
+      <div class="profile-option" data-diet="vegano">Vegano</div>
+      <div class="profile-option" data-diet="sem-gluten">Sem glúten</div>
+      <div class="profile-option" data-diet="sem-lactose">Sem lactose</div>
+      <div class="profile-option" data-diet="alergias">Alergias</div>
+    </div>
+    <p class="status-msg" style="margin-bottom: 6px">Acessibilidade</p>
+    <div class="profiles" id="access">
+      <div class="profile-option" data-access="mobilidade">Mobilidade reduzida</div>
+    </div>
+  </div>
+
   <button class="btn-primary" id="preview-btn" disabled>Ver prévia do roteiro</button>
   <p class="status-msg" id="preview-status" hidden></p>
 
@@ -273,6 +333,13 @@
   const previewContent = document.getElementById("preview-content");
   const fullItineraryBtn = document.getElementById("full-itinerary-btn");
   const stepDots = document.querySelectorAll("[data-step-dot]");
+  const companionsBox = document.getElementById("companions");
+  const travelersInput = document.getElementById("travelers-input");
+  const pacesBox = document.getElementById("paces");
+  const interestsBox = document.getElementById("interests");
+  const originInput = document.getElementById("origin-input");
+  const dietsBox = document.getElementById("diets");
+  const accessBox = document.getElementById("access");
 
   const state = {
     destination: "",
@@ -281,6 +348,13 @@
     hotel: "",
     startDate: "",
     endDate: "",
+    companion: "",
+    travelers: 1,
+    pace: "",
+    interests: [],
+    origin: "",
+    diets: [],
+    access: [],
   };
 
   let debounceTimer = null;
@@ -303,6 +377,9 @@
       state.budget,
       state.hotel,
       computeTripDays() !== null,
+      state.companion,
+      state.pace,
+      state.interests.length > 0,
     ].filter(Boolean).length;
     stepDots.forEach((dot, i) => {
       dot.classList.toggle("active", i < Math.max(completed, 1));
@@ -315,8 +392,28 @@
       state.profile &&
       state.budget &&
       state.hotel &&
+      state.companion &&
+      state.pace &&
+      state.interests.length > 0 &&
       computeTripDays() !== null
     );
+  }
+
+  // Multi-select pills: toggles membership of the option's id in state[stateKey].
+  function setupMultiPillGroup(container, stateKey, datasetKey) {
+    container.addEventListener("click", (e) => {
+      const option = e.target.closest(".profile-option");
+      if (!option) return;
+      const value = option.dataset[datasetKey];
+      const list = state[stateKey];
+      const idx = list.indexOf(value);
+      if (idx === -1) list.push(value);
+      else list.splice(idx, 1);
+      option.classList.toggle("selected", idx === -1);
+      previewCard.hidden = true;
+      updatePreviewButton();
+      updateStepDots();
+    });
   }
 
   function setupPillGroup(container, stateKey, datasetKey) {
@@ -400,6 +497,29 @@
   setupPillGroup(profilesBox, "profile", "profile");
   setupPillGroup(budgetsBox, "budget", "budget");
   setupPillGroup(hotelsBox, "hotel", "hotel");
+  setupPillGroup(companionsBox, "companion", "companion");
+  setupPillGroup(pacesBox, "pace", "pace");
+  setupMultiPillGroup(interestsBox, "interests", "interest");
+  setupMultiPillGroup(dietsBox, "diets", "diet");
+  setupMultiPillGroup(accessBox, "access", "access");
+
+  // Picking solo/couple pre-fills the head count; the user can still edit it.
+  const COMPANION_DEFAULT_TRAVELERS = { solo: 1, casal: 2 };
+  companionsBox.addEventListener("click", () => {
+    const n = COMPANION_DEFAULT_TRAVELERS[state.companion];
+    if (n) {
+      state.travelers = n;
+      travelersInput.value = String(n);
+    }
+  });
+  travelersInput.addEventListener("input", () => {
+    const n = Math.min(20, Math.max(1, parseInt(travelersInput.value, 10) || 1));
+    state.travelers = n;
+    previewCard.hidden = true;
+  });
+  originInput.addEventListener("input", () => {
+    state.origin = originInput.value.trim();
+  });
 
   const today = new Date().toISOString().slice(0, 10);
   startDateInput.min = today;
@@ -433,6 +553,9 @@
         destination: state.destination,
         profile: state.profile,
         days: String(computeTripDays()),
+        pace: state.pace,
+        interests: state.interests.join(","),
+        travelers: String(state.travelers),
       });
       const res = await fetch(`/api/itinerary/generate?${params.toString()}`);
       const body = await res.json();
@@ -482,7 +605,14 @@
       hotel: state.hotel,
       start_date: state.startDate,
       end_date: state.endDate,
+      companion: state.companion,
+      travelers: String(state.travelers),
+      pace: state.pace,
+      interests: state.interests.join(","),
     });
+    if (state.origin) params.set("origin", state.origin);
+    if (state.diets.length) params.set("diets", state.diets.join(","));
+    if (state.access.length) params.set("access", state.access.join(","));
     window.location.href = `planner.html?${params.toString()}`;
   });
 
